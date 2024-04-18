@@ -1,0 +1,34 @@
+version: "2"
+sql:
+  - engine: "postgresql"
+    queries: "db/query.sql"
+    schema: "schemas/000001_initial_schema.up.sql"
+    gen:
+      go:
+        package: "models"
+        out: "models"
+        sql_package: "pgx/v5"
+        overrides:
+          - db_type: "pg_catalog.timestamp"     # timestamp without timezone is also considered as pg_catalog.timestamp
+            go_type:
+              import: "time"                    #  overriding type to time.Time for column with null not allowed
+              type: "Time"
+            nullable: false
+          - db_type: "uuid"
+            go_type:
+              import: "github.com/google/uuid"  #  overriding type to google's uuid for columns with null allowed
+              type: "NullUUID"
+            nullable: true
+          - db_type: "uuid"
+            go_type:
+              import: "github.com/google/uuid"  #  overriding type to google's uuid for columns with null not allowed
+              type: "UUID"
+            nullable: false
+          - db_type: "date"
+            go_type:
+              import: "time"                    #  overriding date type to time.Time for columns with null allowed
+              type: "Time"
+              pointer: true
+            nullable: true
+            
+          
