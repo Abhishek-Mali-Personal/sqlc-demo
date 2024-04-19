@@ -3,11 +3,13 @@ package main
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"github.com/golang-migrate/migrate/v4"
 	postgres "github.com/golang-migrate/migrate/v4/database/pgx/v5"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/joho/godotenv"
 	"log"
@@ -117,8 +119,11 @@ func InitMigrator() *migrate.Migrate {
 	// MIGRATING ALL SCHEMA PRESENT IN MIGRATION PATH
 	migrationError := newMigrator.Up()
 	if migrationError != nil {
-		log.Fatal("Error migrating database: ", migrationError)
-
+		if errors.Is(migrationError, migrate.ErrNoChange) {
+			log.Println("Nothing to migrate, Skipping migration")
+		} else {
+			log.Fatal("Error migrating database: ", migrationError)
+		}
 	}
 	log.Println("Migration completed successfully")
 	log.Println("Closing Migration Database Connection")
@@ -163,10 +168,24 @@ func main() {
 		log.Fatal("Error Creating Lookup: ", createLookupError)
 	}
 	log.Printf("%#v", createdLookup)
+	log.Println("Executing Update query")
+
+	// EXECUTING UPDATE QUERY USING CREATED QUERY OBJECT
+	currentTime := time.Now()
+	updatedLookup, updatedLookupError := query.UpdateLookup(bgCtx, models.UpdateLookupParams{
+		IsActive:     false,
+		UpdateDate:   &currentTime,
+		UpdateUserID: pgtype.Int4{Int32: 1, Valid: true},
+		LookupID:     createdLookup.LookupID,
+	})
+	if updatedLookupError != nil {
+		log.Fatal("Error Updating Lookup: ", updatedLookupError)
+	}
+	log.Printf("Updated Lookup: %#v", updatedLookup)
 	log.Println("Executing Retrieve query")
 
 	// EXECUTING SELECT QUERY USING CREATED QUERY OBJECT
-	retrievedLookups, retrieveLookupError := query.ListLookupsByDisplayText(bgCtx, "GoLang")
+	retrievedLookups, retrieveLookupError := query.ListLookupsByDisplayText(bgCtx, updatedLookup.DisplayText)
 	if retrieveLookupError != nil {
 		log.Fatal("Error Retrieving Lookup: ", retrieveLookupError)
 	}

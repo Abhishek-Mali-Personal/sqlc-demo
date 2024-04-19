@@ -13,6 +13,17 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const countLookupByDisplayText = `-- name: CountLookupByDisplayText :one
+SELECT count(*) FROM lookups WHERE display_text ILIKE $1
+`
+
+func (q *Queries) CountLookupByDisplayText(ctx context.Context, displayText string) (int64, error) {
+	row := q.db.QueryRow(ctx, countLookupByDisplayText, displayText)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createLookup = `-- name: CreateLookup :one
 INSERT INTO lookups(
 	lookup_id, table_name, display_order, display_text, is_active, parent_id, internal_key, concurrency_key, create_date, create_user_id, update_date, update_user_id, value_text)
@@ -300,6 +311,71 @@ func (q *Queries) NewLookupWithConcurrencyKey(ctx context.Context, arg NewLookup
 		arg.CreateDate,
 		arg.CreateUserID,
 		arg.ValueText,
+	)
+	var i Lookup
+	err := row.Scan(
+		&i.LookupID,
+		&i.TableName,
+		&i.DisplayOrder,
+		&i.DisplayText,
+		&i.IsActive,
+		&i.ParentID,
+		&i.InternalKey,
+		&i.ConcurrencyKey,
+		&i.CreateDate,
+		&i.CreateUserID,
+		&i.UpdateDate,
+		&i.UpdateUserID,
+		&i.ValueText,
+	)
+	return i, err
+}
+
+const updateLookup = `-- name: UpdateLookup :one
+UPDATE lookups
+SET
+    table_name = COALESCE(NULLIF($1, ''), table_name),
+    display_order = COALESCE($2, display_order),
+    display_text = COALESCE(NULLIF($3, ''), display_text),
+    is_active = COALESCE($4, is_active),
+    parent_id = COALESCE($5, parent_id),
+    internal_key = COALESCE(NULLIF($6, ''), internal_key),
+    concurrency_key = COALESCE(NULLIF($7, ''), concurrency_key),
+    update_date = $8,
+    update_user_id = $9,
+    value_text = COALESCE(NULLIF($10, ''), value_text)
+WHERE
+    lookup_id = $11
+    RETURNING lookup_id, table_name, display_order, display_text, is_active, parent_id, internal_key, concurrency_key, create_date, create_user_id, update_date, update_user_id, value_text
+`
+
+type UpdateLookupParams struct {
+	Column1      interface{}
+	DisplayOrder int32
+	Column3      interface{}
+	IsActive     bool
+	ParentID     uuid.NullUUID
+	Column6      interface{}
+	Column7      interface{}
+	UpdateDate   *time.Time
+	UpdateUserID pgtype.Int4
+	Column10     interface{}
+	LookupID     uuid.UUID
+}
+
+func (q *Queries) UpdateLookup(ctx context.Context, arg UpdateLookupParams) (Lookup, error) {
+	row := q.db.QueryRow(ctx, updateLookup,
+		arg.Column1,
+		arg.DisplayOrder,
+		arg.Column3,
+		arg.IsActive,
+		arg.ParentID,
+		arg.Column6,
+		arg.Column7,
+		arg.UpdateDate,
+		arg.UpdateUserID,
+		arg.Column10,
+		arg.LookupID,
 	)
 	var i Lookup
 	err := row.Scan(

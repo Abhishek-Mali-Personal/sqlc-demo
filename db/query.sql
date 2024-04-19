@@ -28,3 +28,22 @@ SELECT table_name, display_order, display_text, is_active FROM lookups WHERE tab
 -- name: ListLookups :many
 SELECT table_name, display_order, display_text, is_active FROM lookups;
 
+-- name: CountLookupByDisplayText :one
+SELECT count(*) FROM lookups WHERE display_text ILIKE $1;
+
+-- name: UpdateLookup :one
+UPDATE lookups
+SET
+    table_name = COALESCE(NULLIF($1, ''), table_name),
+    display_order = COALESCE($2, display_order),
+    display_text = COALESCE(NULLIF($3, ''), display_text),
+    is_active = COALESCE($4, is_active),
+    parent_id = COALESCE($5, parent_id),
+    internal_key = COALESCE(NULLIF($6, ''), internal_key),
+    concurrency_key = COALESCE(NULLIF($7, ''), concurrency_key),
+    update_date = $8,
+    update_user_id = $9,
+    value_text = COALESCE(NULLIF($10, ''), value_text)
+WHERE
+    lookup_id = $11
+    RETURNING *;
