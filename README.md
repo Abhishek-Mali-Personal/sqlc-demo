@@ -1,5 +1,4 @@
 # SQLC Demo
-_________________
 
 This Project contains a demo of [sqlc](https://docs.sqlc.dev/en/latest/) with [golang-migrate](https://github.com/golang-migrate/migrate). Also demo is created using POSTGRESQL Database with [pgx](https://github.com/jackc/pgx) with version 5 that is pgx/v5 instead of native library [lib/pq](https://github.com/lib/pq) as it has long undergone maintenance mode and pgx library is recommended by them for further use.
 
