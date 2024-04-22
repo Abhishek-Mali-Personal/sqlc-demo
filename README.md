@@ -19,5 +19,5 @@ _________________
 - Logs are added to display and understand the working of the example.
 - Down functionality is added to drop the migration created.
 - DB created for migration and for performing sql queries are different as migrator library needs DB of database/sql library and query needs pgx/v5 DB for performing any operations.
-- Both DB are closed for cleanup process and as of good practice to do so.
-- A create Example and retrieve example is implemented to display the simple working.
+- Both DB And Migrator are closed for cleanup process and as of good practice to do so.
+- An Example to create and retrieve example is implemented to display the simple working.
