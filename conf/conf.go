@@ -1,34 +1,50 @@
 package conf
 
 import (
+	"embed"
 	"fmt"
 	"github.com/joho/godotenv"
 	"log"
 	"os"
 	"sqlc-demo/db"
-	"sqlc-demo/service"
 	"strings"
 )
 
+//go:embed *
+var configFile embed.FS
+
 // LoadEnvVariables loads the env variable from .env file and sets all env variable
 func LoadEnvVariables() {
-	// LOAD .env FILE
-	loadEnvError := godotenv.Load(".env")
-	if loadEnvError != nil {
-		log.Fatal("Error loading .env file", loadEnvError)
+
+	// FETCHING ENV FILE FROM EMBED FS
+	envFile, openEmbedFileError := configFile.Open(".env")
+	if openEmbedFileError != nil {
+		log.Fatal("Error Opening Embedded .env File: ", openEmbedFileError)
 	}
 
-	// FETCH ABSOLUTE PATH OF schemas DIRECTORY
-	fetchAbsolutePath, fetchAbsolutePathError := service.FetchAbsolutePath(db.MigrationPath)
-	if fetchAbsolutePathError != nil {
-		log.Fatal("Error Fetching Absolute Path: ", fetchAbsolutePathError)
+	// PARSING ENV FILE FETCHED FROM EMBED FS
+	envData, envParseError := godotenv.Parse(envFile)
+	if envParseError != nil {
+		log.Fatal("Error Parsing .env File: ", envParseError)
 	}
 
-	// ADD file:/// PREFIX IF NOT PRESENT IN ABSOLUTE PATH SPECIFIED AS MIGRATION FUNCTION NEEDS THIS FORMAT
-	if !strings.HasPrefix(fetchAbsolutePath, "file:///") {
-		db.MigrationPath = "file:///" + fetchAbsolutePath
-	} else {
-		db.MigrationPath = fetchAbsolutePath
+	currentEnvInRaw := make(map[string]bool)
+	rawEnv := os.Environ()
+	// CHECKING IF KEY ALREADY EXIST IN ENV IF EXIST KEY IS MAPPED TRUE
+	for _, rawEnvData := range rawEnv {
+		key := strings.Split(rawEnvData, "=")[0]
+		currentEnvInRaw[key] = true
+	}
+
+	// IF KEY VALUE FROM envData IS ALREADY IN RAW THEN IT DOES NOT SET ENV VALUE FETCHED FROM EMBED FS
+	for key, value := range envData {
+		if !currentEnvInRaw[key] {
+			setenvError := os.Setenv(key, value)
+			if setenvError != nil {
+				log.Fatal("Error setting env vars: ", setenvError)
+				return
+			}
+		}
 	}
 
 	// SET ALL ENV VARIABLES

@@ -2,10 +2,12 @@ package db
 
 import (
 	"database/sql"
+	"embed"
 	"errors"
 	"github.com/golang-migrate/migrate/v4"
 	postgres "github.com/golang-migrate/migrate/v4/database/pgx/v5"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
+	"github.com/golang-migrate/migrate/v4/source/iofs"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"log"
 )
@@ -34,6 +36,9 @@ var (
 
 	// DataSourceName : DSN GENERATED FROM ABOVE DB CREDENTIALS
 	DataSourceName string
+
+	//go:embed schemas
+	SchemaConfigFile embed.FS
 )
 
 // InitMigrator returns migrate object after doing migrations to the database returned object can later be used to down the applied migrations
@@ -48,14 +53,20 @@ func InitMigrator() *migrate.Migrate {
 	log.Println("Fetching DB Driver")
 
 	// CREATING DATABASE DRIVER USING NEWLY OPENED DATABASE CONNECTION
-	DBDriver, dbDriverError := postgres.WithInstance(newDB, &postgres.Config{})
+	dbDriver, dbDriverError := postgres.WithInstance(newDB, &postgres.Config{})
 	if dbDriverError != nil {
 		log.Fatal("Error Fetching DB Driver for Migration DB", dbDriverError)
 	}
 	log.Println("Initializing migrations")
 
+	// CREATING NEW IOFS SOURCE DRIVER
+	sourceDriver, iofsSourceCreationError := iofs.New(SchemaConfigFile, MigrationPath)
+	if iofsSourceCreationError != nil {
+		log.Fatal("Error Creating IOFS source Driver", iofsSourceCreationError)
+	}
+
 	// CREATING NEW MIGRATOR USING DATABASE DRIVER INSTANCE, DATABASE NAME AND MIGRATION FILE PATH
-	newMigrator, openMigratorError := migrate.NewWithDatabaseInstance(MigrationPath, Name, DBDriver)
+	newMigrator, openMigratorError := migrate.NewWithInstance("iofs", sourceDriver, Name, dbDriver)
 	if openMigratorError != nil {
 		log.Fatal("Error opening migrator: ", openMigratorError)
 	}
